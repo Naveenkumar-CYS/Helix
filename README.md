@@ -72,8 +72,8 @@ The fastest way to get started:
 
 ```bash
 # Clone the repository
-git clone https://github.com/madhurgrover-cs/ai-honepot.git
-cd ai-honepot
+git clone https://github.com/akash06-cs/Helix
+cd Helix
 
 # Start with Docker Compose
 docker-compose up --build
@@ -93,8 +93,8 @@ See [DOCKER.md](DOCKER.md) for more details.
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/madhurgrover-cs/ai-honepot.git
-    cd ai-honepot
+    git clone https://github.com/akash06-cs/Helix
+    cd Helix
     ```
 
 2.  **Create a virtual environment**
