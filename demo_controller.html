@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Honeypot - Live Attack Demo Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .attack-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .attack-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .attack-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .attack-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-right: 15px;
+        }
+
+        .attack-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .attack-description {
+            color: #7f8c8d;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .attack-payload {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #27ae60;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+
+        .attack-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .attack-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .attack-button:active {
+            transform: scale(0.98);
+        }
+
+        .dashboard-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard-section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .dashboard-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .dashboard-button {
+            padding: 15px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .dashboard-button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .instructions {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .instructions h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #34495e;
+            line-height: 2;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .badge-owasp {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .badge-mitre {
+            background: #f39c12;
+            color: white;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .executing {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>&#127919; AI Honeypot - Live Attack Demo</h1>
+            <p>Click buttons to execute attacks and watch the dashboard update in real-time!</p>
+        </div>
+
+        <div class="status-bar">
+            <span id="status">Ready to demonstrate attacks</span>
+        </div>
+
+        <div class="instructions">
+            <h2>&#128203; Demo Instructions</h2>
+            <ol>
+                <li><strong>Open Dashboard:</strong> Click "Open Dashboard" below to open the real-time dashboard in a
+                    new tab</li>
+                <li><strong>Position Windows:</strong> Arrange this page and the dashboard side-by-side</li>
+                <li><strong>Execute Attacks:</strong> Click each attack button in sequence (1-7)</li>
+                <li><strong>Watch Dashboard:</strong> Point out the real-time updates after each attack</li>
+                <li><strong>Show Advanced Features:</strong> Use the API buttons to demonstrate additional capabilities
+                </li>
+            </ol>
+        </div>
+
+        <div class="dashboard-section">
+            <h2>🖥️ Dashboard & Setup</h2>
+            <div class="dashboard-buttons">
+                <button class="dashboard-button" onclick="openDashboard()">
+                    📊 Open Dashboard
+                </button>
+                <button class="dashboard-button" onclick="openMainPage()">
+                    🏠 Open Main Page
+                </button>
+                <button class="dashboard-button" onclick="checkServer()">
+                    ✅ Check Server Status
+                </button>
+            </div>
+        </div>
+
+        <h2 style="color: white; margin-bottom: 20px; font-size: 2em;">🎯 Attack Demonstrations (Click in Order)</h2>
+
+        <div class="demo-grid">
+            <!-- Attack 1: SQL Injection -->
+            <div class="attack-card">
+                <div class="attack-header">
+                    <div class="attack-number">1</div>
+                    <div class="attack-title">SQL Injection <span class="badge badge-owasp">OWASP</span></div>
+                </div>
+                <div class="attack-description">
+                    Classic SQL injection attempting to bypass authentication with OR logic
+                </div>
+                <div class="attack-payload">' OR 1=1--</div>
+                <button class="attack-button" onclick="executeAttack(1, '/search?q=\\' OR 1=1--', 'SQL Injection')">
+                    🚀 Execute SQL Injection
+                </button>
+            </div>
+
+            <!-- Attack 2: XSS -->
+            <div class="attack-card">
+                <div class="attack-header">
+                    <div class="attack-number">2</div>
+                    <div class="attack-title">Cross-Site Scripting <span class="badge badge-owasp">OWASP</span></div>
+                </div>
+                <div class="attack-description">
+                    Reflected XSS attack injecting JavaScript to execute in victim's browser
+                </div>
+                <div class="attack-payload">&lt;script&gt;alert('XSS')&lt;/script&gt;</div>
+                <button class="attack-button"
+                    onclick="executeAttack(2, '/search?q=<script>alert(\\'XSS\\')</script>', 'XSS')">
+                    🚀 Execute XSS Attack
+                </button>
+            </div>
+
+            <!-- Attack 3: Path Traversal -->
+            <div class="attack-card">
+                <div class="attack-header">
+                    <div class="attack-number">3</div>
+                    <div class="attack-title">Path Traversal <span class="badge badge-owasp">OWASP</span></div>
+                </div>
+                <div class="attack-description">
+                    Directory traversal attempting to access /etc/passwd file
+                </div>
+                <div class="attack-payload">../../etc/passwd</div>
+                <button class="attack-button"
+                    onclick="executeAttack(3, '/search?q=../../etc/passwd', 'Path Traversal')">
+                    🚀 Execute Path Traversal
+                </button>
+            </div>
+
+            <!-- Attack 4: Command Injection -->
+            <div class="attack-card">
+                <div class="attack-header">
+                    <div class="attack-number">4</div>
+                    <div class="attack-title">Command Injection <span class="badge badge-owasp">OWASP</span></div>
+                </div>
+                <div class="attack-description">
+                    OS command injection attempting to execute shell commands
+                </div>
+                <div class="attack-payload">test;ls -la</div>
+                <button class="attack-button" onclick="executeAttack(4, '/search?q=test;ls -la', 'Command Injection')">
+                    🚀 Execute Command Injection
+                </button>
+            </div>
+
+            <!-- Attack 5: SSRF -->
+            <div class="attack-card">
+                <div class="attack-header">
+                    <div class="attack-number">5</div>
+                    <div class="attack-title">SSRF <span class="badge badge-owasp">OWASP</span></div>
+                </div>
+                <div class="attack-description">
+                    Server-Side Request Forgery targeting internal admin endpoint
+                </div>
+                <div class="attack-payload">http://localhost/admin</div>
+                <button class="attack-button" onclick="executeAttack(5, '/search?q=http://localhost/admin', 'SSRF')">
+                    🚀 Execute SSRF Attack
+                </button>
+            </div>
+
+            <!-- Attack 6: Auth Bypass -->
+            <div class="attack-card">
+                <div class="attack-header">
+                    <div class="attack-number">6</div>
+                    <div class="attack-title">Auth Bypass <span class="badge badge-owasp">OWASP</span></div>
+                </div>
+                <div class="attack-description">
+                    Credential stuffing with default admin credentials
+                </div>
+                <div class="attack-payload">admin:admin</div>
+                <button class="attack-button"
+                    onclick="executeAttack(6, '/admin?user=admin&pass=admin:admin', 'Authentication Bypass')">
+                    🚀 Execute Auth Bypass
+                </button>
+            </div>
+
+            <!-- Attack 7: Deserialization -->
+            <div class="attack-card">
+                <div class="attack-header">
+                    <div class="attack-number">7</div>
+                    <div class="attack-title">Insecure Deserialization <span class="badge badge-owasp">OWASP</span>
+                    </div>
+                </div>
+                <div class="attack-description">
+                    Python pickle deserialization exploit for remote code execution
+                </div>
+                <div class="attack-payload">__reduce__</div>
+                <button class="attack-button" onclick="executeAttack(7, '/search?q=__reduce__', 'Deserialization')">
+                    🚀 Execute Deserialization Attack
+                </button>
+            </div>
+        </div>
+
+        <div class="dashboard-section">
+            <h2>🔬 Advanced Features (After Attack Demo)</h2>
+            <div class="dashboard-buttons">
+                <button class="dashboard-button" onclick="showPrediction()">
+                    🤖 AI Prediction
+                </button>
+                <button class="dashboard-button" onclick="showMITRE()">
+                    🎯 MITRE Mapping
+                </button>
+                <button class="dashboard-button" onclick="showTimeline()">
+                    📅 Forensic Timeline
+                </button>
+                <button class="dashboard-button" onclick="showPlaybook()">
+                    📖 Incident Playbook
+                </button>
+                <button class="dashboard-button" onclick="showSTIX()">
+                    🔗 STIX Export
+                </button>
+                <button class="dashboard-button" onclick="showCanary()">
+                    🕯️ Canary Analytics
+                </button>
+            </div>
+        </div>
+
+        <div class="instructions" style="background: #2c3e50; color: white;">
+            <h2 style="color: white;">💡 Talking Points for Judges</h2>
+            <ul style="margin-left: 20px; line-height: 2;">
+                <li><strong>Real-time Detection:</strong> "Notice how the dashboard updates instantly via WebSockets"
+                </li>
+                <li><strong>AI Prediction:</strong> "Our Markov chain predicts the next attack with 60%+ accuracy"</li>
+                <li><strong>MITRE Mapping:</strong> "Every attack is automatically mapped to ATT&CK techniques"</li>
+                <li><strong>Auto Playbooks:</strong> "Incident response procedures generated automatically"</li>
+                <li><strong>Production Ready:</strong> "All security vulnerabilities fixed - rate limiting, signed
+                    cookies, resource limits"</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let attackerCookie = null;
+
+        function openDashboard() {
+            window.open('http://localhost:8000/demo', '_blank');
+            updateStatus('✅ Dashboard opened! Position it next to this window');
+        }
+
+        function openMainPage() {
+            window.open('http://localhost:8000/', '_blank');
+            updateStatus('✅ Main page opened');
+        }
+
+        async function checkServer() {
+            try {
+                const response = await fetch('http://localhost:8000/health');
+                if (response.ok) {
+                    updateStatus('✅ Server is running and ready!');
+                } else {
+                    updateStatus('⚠️ Server responded but may have issues');
+                }
+            } catch (error) {
+                updateStatus('❌ Server not running! Start with: python app.py');
+            }
+        }
+
+        async function executeAttack(number, endpoint, attackName) {
+            const button = event.target;
+            button.classList.add('executing');
+            button.textContent = '⏳ Executing...';
+
+            updateStatus(`🚀 Executing Attack ${number}: ${attackName}`);
+
+            try {
+                const url = `http://localhost:8000${endpoint}`;
+                const response = await fetch(url, {
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    updateStatus(`✅ Attack ${number} executed! Check dashboard for updates`);
+
+                    // Store cookie for later API calls
+                    const cookies = document.cookie;
+                    if (cookies) {
+                        attackerCookie = cookies.split(';').find(c => c.includes('attacker_id'));
+                    }
+
+                    setTimeout(() => {
+                        button.classList.remove('executing');
+                        button.textContent = `✓ ${attackName} Executed`;
+                        button.style.background = '#27ae60';
+                    }, 1000);
+                } else {
+                    updateStatus(`⚠️ Attack ${number} got response ${response.status}`);
+                    button.classList.remove('executing');
+                    button.textContent = `🚀 Execute ${attackName}`;
+                }
+            } catch (error) {
+                updateStatus(`❌ Error executing attack ${number}: ${error.message}`);
+                button.classList.remove('executing');
+                button.textContent = `🚀 Execute ${attackName}`;
+            }
+        }
+
+        function showPrediction() {
+            const attackerId = getCookieValue('attacker_id');
+            if (attackerId) {
+                window.open(`http://localhost:8000/api/prediction/${attackerId}`, '_blank');
+                updateStatus('📊 Showing AI predictions based on attack sequence');
+            } else {
+                updateStatus('⚠️ Execute some attacks first to get predictions');
+            }
+        }
+
+        function showMITRE() {
+            const attackerId = getCookieValue('attacker_id');
+            if (attackerId) {
+                window.open(`http://localhost:8000/api/mitre/${attackerId}`, '_blank');
+                updateStatus('🎯 Showing MITRE ATT&CK mapping');
+            } else {
+                updateStatus('⚠️ Execute some attacks first to see MITRE mapping');
+            }
+        }
+
+        function showTimeline() {
+            const attackerId = getCookieValue('attacker_id');
+            if (attackerId) {
+                window.open(`http://localhost:8000/api/timeline/${attackerId}`, '_blank');
+                updateStatus('📅 Showing forensic timeline');
+            } else {
+                updateStatus('⚠️ Execute some attacks first to see timeline');
+            }
+        }
+
+        function showPlaybook() {
+            window.open('http://localhost:8000/api/playbook/SQL%20Injection', '_blank');
+            updateStatus('📖 Showing auto-generated incident response playbook');
+        }
+
+        function showSTIX() {
+            const attackerId = getCookieValue('attacker_id');
+            if (attackerId) {
+                window.open(`http://localhost:8000/api/threat-intel/${attackerId}/stix`, '_blank');
+                updateStatus('🔗 Showing STIX 2.1 threat intelligence export');
+            } else {
+                updateStatus('⚠️ Execute some attacks first to generate STIX bundle');
+            }
+        }
+
+        function showCanary() {
+            window.open('http://localhost:8000/api/canary/dashboard', '_blank');
+            updateStatus('🕯️ Showing canary token analytics');
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function getCookieValue(name) {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [key, value] = cookie.trim().split('=');
+                if (key === name) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        // Check server status on load
+        window.addEventListener('load', () => {
+            setTimeout(checkServer, 500);
+        });
+    </script>
+</body>
+
+</html>

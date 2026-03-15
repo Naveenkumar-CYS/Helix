@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Corporate Portal{% endblock %}
+
+{% block breadcrumb %}Dashboard / Overview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">System Overview</h1>
+</div>
+
+<div class="info-grid">
+    <div class="card">
+        <div class="info-card-label">Total Attacks Detected</div>
+        <div class="info-card-value" id="total-attacks">0</div>
+        <div class="note">Last 24 hours</div>
+    </div>
+    <div class="card">
+        <div class="info-card-label">Active Threats</div>
+        <div class="info-card-value" id="unique-attackers">0</div>
+        <div class="note">Unique sources</div>
+    </div>
+    <div class="card">
+        <div class="info-card-label">System Status</div>
+        <div class="info-card-value" style="color: #28a745; font-size: 20px;">OPERATIONAL</div>
+        <div class="note">Uptime: 99.9%</div>
+    </div>
+    <div class="card">
+        <div class="info-card-label">Threat Level</div>
+        <div class="info-card-value" id="threat-level">LOW</div>
+        <div class="note">Based on heuristic analysis</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="sidebar-header"
+        style="background: white; color: var(--text-color); padding: 0; margin-bottom: 15px; border-bottom: 2px solid var(--secondary-color);">
+        Recent Activity Log
+    </div>
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Type</th>
+                    <th>Source</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody id="attack-feed-body">
+                <tr>
+                    <td colspan="4" style="text-align: center; color: #888; padding: 20px;">Waiting for activity...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="info-grid">
+    <div class="card">
+        <div class="sidebar-header"
+            style="background: white; color: var(--text-color); padding: 0; margin-bottom: 15px; border-bottom: 2px solid var(--secondary-color);">
+            Attack Distribution
+        </div>
+        <div id="attack-chart" style="padding: 10px;"></div>
+    </div>
+    <div class="card">
+        <div class="sidebar-header"
+            style="background: white; color: var(--text-color); padding: 0; margin-bottom: 15px; border-bottom: 2px solid var(--secondary-color);">
+            Attacker Skill Level
+        </div>
+        <div id="skill-chart" style="padding: 10px;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const ws = new WebSocket('ws://' + window.location.host + '/ws/dashboard');
+
+    ws.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+        if (data.type === 'attack') {
+            addAttackRow(data.attack);
+        } else if (data.type === 'stats') {
+            updateStats(data.stats);
+        }
+    };
+
+    // Initial stats request
+    ws.onopen = () => {
+        setTimeout(() => ws.send(JSON.stringify({ type: 'get_stats' })), 500);
+        setInterval(() => ws.send(JSON.stringify({ type: 'get_stats' })), 5000);
+    };
+
+    function addAttackRow(attack) {
+        const tbody = document.getElementById('attack-feed-body');
+
+        // Remove 'waiting' row
+        if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+            tbody.innerHTML = '';
+        }
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${new Date(attack.timestamp).toLocaleTimeString()}</td>
+            <td><span style="font-weight: 600;">${attack.attack_type}</span></td>
+            <td>${attack.ip} <br><span style="font-size: 11px; color: #666;">${attack.country || 'Unknown'}</span></td>
+            <td style="font-family: monospace; font-size: 12px; color: #555;">${attack.endpoint}</td>
+        `;
+
+        tbody.insertBefore(row, tbody.firstChild);
+        if (tbody.rows.length > 20) tbody.removeChild(tbody.lastChild);
+    }
+
+    function updateStats(stats) {
+        document.getElementById('total-attacks').textContent = stats.total_attacks || 0;
+        document.getElementById('unique-attackers').textContent = stats.unique_attackers || 0;
+        document.getElementById('threat-level').textContent = calculateThreatLevel(stats.total_attacks);
+
+        renderSimpleBarChart('attack-chart', stats.attack_type_distribution);
+        renderSimpleBarChart('skill-chart', stats.skill_level_distribution);
+    }
+
+    function calculateThreatLevel(count) {
+        if (count < 10) return 'LOW';
+        if (count < 50) return 'MEDIUM';
+        if (count < 100) return 'HIGH';
+        return 'CRITICAL';
+    }
+
+    function renderSimpleBarChart(id, data) {
+        const container = document.getElementById(id);
+        container.innerHTML = '';
+        if (!data || Object.keys(data).length === 0) {
+            container.innerHTML = '<div style="color: #999; text-align: center;">No data available</div>';
+            return;
+        }
+
+        const max = Math.max(...Object.values(data));
+        for (const [key, value] of Object.entries(data)) {
+            const pct = (value / max) * 100;
+            const bar = document.createElement('div');
+            bar.style.marginBottom = '8px';
+            bar.innerHTML = `
+                <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;">
+                    <span>${key}</span>
+                    <span>${value}</span>
+                </div>
+                <div style="background: #eee; height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="background: var(--primary-color); width: ${pct}%; height: 100%;"></div>
+                </div>
+            `;
+            container.appendChild(bar);
+        }
+    }
+</script>
+{% endblock %}

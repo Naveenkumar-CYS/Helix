@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - Corporate Portal{% endblock %}
+
+{% block breadcrumb %}System Administration{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Administration Console</h1>
+</div>
+
+<div class="alert"
+    style="background: #fff3cd; color: #856404; padding: 15px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 20px;">
+    <strong>Notice:</strong> This area is restricted to Level 3 Administrators only. All actions are logged.
+</div>
+
+<div class="info-grid">
+    <div class="card">
+        <h3>User Management</h3>
+        <p style="margin: 10px 0; font-size: 13px;">Manage employee access and permissions.</p>
+        <button class="btn-primary">Manage Users</button>
+    </div>
+    <div class="card">
+        <h3>System Configuration</h3>
+        <p style="margin: 10px 0; font-size: 13px;">Modify global system settings.</p>
+        <button class="btn-primary">Configure</button>
+    </div>
+    <div class="card">
+        <h3>Security Audit</h3>
+        <p style="margin: 10px 0; font-size: 13px;">Review security logs and access attempts.</p>
+        <button class="btn-primary">View Audit Logs</button>
+    </div>
+</div>
+
+{% if result %}
+<div class="card" style="border-left: 4px solid #dc3545;">
+    <h3>Console Output</h3>
+    <pre
+        style="background: #f8f9fa; padding: 15px; margin-top: 10px; border-radius: 4px; border: 1px solid #ddd; overflow-x: auto;">{{ result }}</pre>
+</div>
+{% endif %}
+
+{% endblock %}

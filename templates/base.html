@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Corporate Portal{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/portal.css">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                Internal Portal
+            </div>
+            <ul class="nav-links">
+                <li><a href="/dashboard" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">Dashboard</a></li>
+                <li><a href="/search" class="nav-link {% if active_page == 'search' %}active{% endif %}">Search</a></li>
+                <li><a href="/logs" class="nav-link {% if active_page == 'logs' %}active{% endif %}">System Logs</a></li>
+                <li><a href="/backups" class="nav-link {% if active_page == 'backups' %}active{% endif %}">Backups</a></li>
+                <li><a href="/timeline" class="nav-link {% if active_page == 'timeline' %}active{% endif %}">Audit Timeline</a></li>
+                <li><a href="#" class="nav-link">Settings</a></li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <nav class="top-nav">
+                <div class="breadcrumb">
+                    {% block breadcrumb %}{% endblock %}
+                </div>
+                <div class="user-profile">
+                    <span>Admin User</span>
+                    <a href="/" style="color: var(--primary-color); text-decoration: none; margin-left: 10px;">Logout</a>
+                </div>
+            </nav>
+
+            <div class="content-wrapper">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

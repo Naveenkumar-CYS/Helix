@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  honeypot:
+    build: .
+    container_name: ai-honeypot
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./attacks.log:/app/attacks.log
+      - ./attacks.json:/app/attacks.json
+    restart: unless-stopped
+    networks:
+      - honeypot-network
+
+networks:
+  honeypot-network:
+    driver: bridge

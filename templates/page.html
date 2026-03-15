@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Corporate Portal{% endblock %}
+
+{% block breadcrumb %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ title }}</h1>
+</div>
+
+{% if type == 'logs' %}
+<div class="card">
+    <div class="log-container">
+        {% for i in range(50) %}
+        <div class="log-entry">
+            <span class="timestamp">[2024-03-20 10:{{ "%02d"|format(i) }}:15]</span>
+            INFO: Service process_worker_{{ i }} started successfully. PID: {{ 3000 + i }}
+        </div>
+        <div class="log-entry">
+            <span class="timestamp">[2024-03-20 10:{{ "%02d"|format(i) }}:16]</span>
+            DEBUG: Connection established to db_shard_02. Latency: 4ms.
+        </div>
+        {% endfor %}
+        <!-- Real logs would go here via variable, keeping it static/dummy for "boring" look as per requirements -->
+    </div>
+</div>
+{% elif type == 'backups' %}
+<div class="card">
+    <h3>System Backups</h3>
+    <p style="color: #666; margin-bottom: 20px;">Manage and download system snapshots.</p>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Date</th>
+                <th>Size</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>backup_full_20240319.tar.gz</td>
+                <td>Mar 19, 2024</td>
+                <td>4.2 GB</td>
+                <td>
+                    <button class="btn-primary"
+                        onclick="alert('Access Denied: Insufficient priviledges')">Download</button>
+                    <div class="note">Legacy export path retained for backward compatibility</div>
+                </td>
+            </tr>
+            <tr>
+                <td>backup_inc_20240318.tar.gz</td>
+                <td>Mar 18, 2024</td>
+                <td>156 MB</td>
+                <td><button class="btn-secondary" disabled>Archived</button></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% elif type == 'timeline' %}
+<div class="card">
+    <div class="log-container" style="background: white; border: none; padding: 0;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i in range(20) %}
+                <tr>
+                    <td>10:{{ "%02d"|format(59-i) }} AM</td>
+                    <td>system_admin</td>
+                    <td>Periodic system health check</td>
+                    <td style="color: green;">Success</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <p>Content not available.</p>
+</div>
+{% endif %}
+
+{% endblock %}

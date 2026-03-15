@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Search - Corporate Portal{% endblock %}
+
+{% block breadcrumb %}Internal Data Search{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <div class="page-header" style="border: none;">
+        <h1 class="page-title">Internal Document Search</h1>
+    </div>
+    <div class="search-description">
+        Search employee records, internal documentation, and project archives.
+    </div>
+
+    <form action="/search" method="get">
+        <div style="display: flex; gap: 10px;">
+            <input type="text" name="q" class="form-control"
+                placeholder="Enter keywords, employee ID, or document ref..." value="{{ q or '' }}"
+                style="padding: 12px;">
+            <button type="submit" class="btn-primary" style="width: auto;">Search</button>
+        </div>
+    </form>
+
+    <div class="search-examples">
+        Try: <a href="/search?q=quarterly_report_2024" style="color: #666;">quarterly_report_2024</a>,
+        <a href="/search?q=employee_handbook" style="color: #666;">employee_handbook</a>,
+        <a href="/search?q=admin_passwords" style="color: #666;">admin_passwords</a>
+    </div>
+</div>
+
+{% if results %}
+<div class="card" style="margin-top: 30px;">
+    <div class="sidebar-header" style="background: white; color: var(--text-color); padding: 0; margin-bottom: 20px;">
+        Search Results
+    </div>
+
+    <!-- Honeypot Result Output -->
+    <div style="background: #f8f9fa; padding: 20px; border: 1px solid #ddd; border-radius: 4px;">
+        {{ results | safe }}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
