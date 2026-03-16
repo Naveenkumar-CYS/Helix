@@ -66,6 +66,13 @@ ATTACKER_ID_COOKIE = "attacker_id"
 # =========================
 def get_attacker_id(request: Request) -> str:
     """
+    Generate a stable attacker ID using the client IP.
+    This allows the honeypot to track attack stages.
+    """
+    if request.client:
+        return request.client.host
+    return "unknown"
+    """
     Retrieve or generate attacker tracking ID.
     
     Args:

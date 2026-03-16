@@ -193,8 +193,23 @@ class HoneypotEngine:
             return self._handle_admin_endpoint(attacker, payload, attacker_id)
         
         # Default: Return fake search results
-        return "Search results: 0 items found"
-    
+# Default normal search behaviour (dynamic)
+        # Default normal search behaviour (dynamic)
+        if endpoint == "/search":
+            fake_results = [
+                "Search results: 0 items found",
+                "Search results: 3 items found",
+                "Database lookup completed: no matches",
+                "Query executed successfully (0.08 sec)",
+                "No products matched your search",
+                "Results filtered: 2 items returned"
+            ]
+
+            apply_deception_delay(DelayType.DATABASE_QUERY)
+
+            return random.choice(fake_results)
+
+        return "200 OK"
     def _handle_sqli(self, attacker: AttackerState, payload: str, attacker_id: str,
                      skill_level: SkillLevel) -> str:
         """Handle SQL injection attack progression with skill-adaptive responses."""
