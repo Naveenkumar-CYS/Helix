@@ -3,7 +3,7 @@ AI-Powered Attack Prediction Engine
 Predicts next attack vectors and attacker goals using Markov chains and pattern analysis.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
@@ -72,70 +72,211 @@ class AttackPrediction:
 # MARKOV CHAIN PREDICTOR
 # =========================
 class MarkovChainPredictor:
-    """Predicts next attack using Markov chain model."""
+    """
+    A production-grade Markov chain predictor for attack sequence analysis.
+    
+    This class implements a first-order Markov chain model that learns attack transition
+    patterns and predicts the most likely next attack vectors. It uses Laplace smoothing
+    to handle unseen transitions and provides structured predictions with confidence scores.
+    
+    Key features:
+    - Learns from attack sequences with incremental updates
+    - Handles unknown attack types gracefully
+    - Provides smoothed probability estimates
+    - Returns structured predictions for easy consumption
+    
+    Attributes:
+        transitions: Dict of state -> next_state -> probability
+        transition_counts: Raw transition counts for learning
+        all_states: Set of all known attack states
+        total_sequences: Total number of learned sequences
+    """
     
     def __init__(self):
+        """
+        Initialize the Markov chain predictor with common attack patterns.
+        
+        Sets up the transition matrices and initializes with known attack sequences
+        from cybersecurity research and common attack chains.
+        """
         # Transition probabilities: current_state -> next_state -> probability
         self.transitions: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
         self.transition_counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self.total_sequences = 0
+        self.all_states = set()  # Track all known states for smoothing
         
         # Initialize with common attack patterns
         self._initialize_common_patterns()
     
     def _initialize_common_patterns(self):
-        """Initialize with known attack patterns."""
-        # Common SQLi progression
+        """
+        Initialize the model with known attack progression patterns.
+        
+        Populates the transition matrices with realistic attack chains based on
+        common cybersecurity attack patterns, including reconnaissance, exploitation,
+        privilege escalation, and data exfiltration phases.
+        """
+        # Common attack progressions based on real-world patterns
         common_patterns = [
-            ["SQL Injection", "SQL Injection", "admin_access"],
-            ["SQL Injection", "admin_access", "command_execution"],
-            ["XSS", "XSS", "session_hijacking"],
-            ["reconnaissance", "SQL Injection", "admin_access"],
-            ["reconnaissance", "XSS", "SQL Injection"],
+            # SQL Injection attack chain
+            ["reconnaissance", "SQL Injection", "credential_extraction"],
             ["SQL Injection", "credential_extraction", "admin_access"],
+            ["credential_extraction", "admin_access", "command_execution"],
             ["admin_access", "command_execution", "data_exfiltration"],
-            ["brute_force", "brute_force", "credential_stuffing"],
+            
+            # XSS attack chain
+            ["reconnaissance", "XSS", "session_hijacking"],
+            ["XSS", "session_hijacking", "credential_extraction"],
+            ["session_hijacking", "admin_access", "command_execution"],
+            
+            # Brute force chain
+            ["reconnaissance", "brute_force", "credential_stuffing"],
+            ["brute_force", "credential_stuffing", "admin_access"],
+            
+            # Path traversal chain
+            ["reconnaissance", "PATH_TRAVERSAL", "credential_extraction"],
+            ["PATH_TRAVERSAL", "admin_access", "data_exfiltration"],
+            
+            # Command injection chain
+            ["reconnaissance", "CMD_INJECTION", "command_execution"],
+            ["CMD_INJECTION", "data_exfiltration"],
+            
+            # Authentication bypass
+            ["reconnaissance", "Authentication Bypass", "admin_access"],
+            
+            # SSRF chain
+            ["reconnaissance", "SSRF", "credential_extraction"],
+            ["SSRF", "admin_access"],
+            
+            # Deserialization
+            ["reconnaissance", "Insecure Deserialization", "command_execution"],
+            
+            # Additional realistic sequences
+            ["SQL Injection", "admin_access", "command_execution"],
+            ["XSS", "SQL Injection", "admin_access"],
+            ["brute_force", "SQL Injection", "admin_access"],
+            ["PATH_TRAVERSAL", "CMD_INJECTION", "data_exfiltration"],
         ]
         
         for pattern in common_patterns:
+            for state in pattern:
+                self.all_states.add(state)
             for i in range(len(pattern) - 1):
                 self.learn_transition(pattern[i], pattern[i + 1])
+        
+        # After learning all initial transitions, update probabilities for all states
+        for state in self.all_states:
+            self._update_probabilities(state)
     
     def learn_transition(self, current_state: str, next_state: str):
-        """Learn a state transition."""
+        """
+        Learn a single state transition from attack logs.
+        
+        Updates the transition counts and recalculates probabilities with smoothing.
+        This method is called incrementally as new attack data is observed.
+        
+        Args:
+            current_state: The current attack type (e.g., "SQL Injection")
+            next_state: The next attack type in sequence
+        """
         self.transition_counts[current_state][next_state] += 1
+        self.all_states.add(current_state)
+        self.all_states.add(next_state)
         
-        # Recalculate probabilities for this state
-        total = sum(self.transition_counts[current_state].values())
-        for next_s in self.transition_counts[current_state]:
-            self.transitions[current_state][next_s] = (
-                self.transition_counts[current_state][next_s] / total
-            )
+        # Recalculate probabilities for this state with Laplace smoothing
+        self._update_probabilities(current_state)
     
-    def predict_next(self, current_state: str, top_k: int = 3) -> List[Tuple[str, float]]:
+    def _update_probabilities(self, state: str):
         """
-        Predict next most likely states.
+        Update smoothed transition probabilities for a given state.
         
-        Returns:
-            List of (state, probability) tuples
+        Uses Laplace smoothing (add-one smoothing) to ensure all possible transitions
+        have non-zero probability, preventing prediction failures for unseen combinations.
+        
+        Args:
+            state: The state for which to update probabilities
         """
-        if current_state not in self.transitions:
-            return []
+        counts = self.transition_counts[state]  # This creates it if not exists
+        
+        if not counts:  # No learned transitions, use uniform distribution
+            num_states = len(self.all_states)
+            uniform_prob = 1.0 / num_states if num_states > 0 else 0.0
+            for next_state in self.all_states:
+                self.transitions[state][next_state] = uniform_prob
+        else:  # Has learned transitions, apply Laplace smoothing
+            total = sum(counts.values())
+            num_states = len(self.all_states)
+            
+            # Laplace smoothing: add 1 to each possible transition
+            for next_state in self.all_states:
+                smoothed_count = counts.get(next_state, 0) + 1
+                smoothed_total = total + num_states
+                self.transitions[state][next_state] = smoothed_count / smoothed_total
+    
+    def predict_next(self, current_state: str, top_k: int = 3) -> Dict[str, Any]:
+        """
+        Predict the next most likely attack states using Markov chain analysis.
+        
+        This method uses a first-order Markov chain with Laplace smoothing to predict
+        the most probable next attack vectors based on learned transition probabilities.
+        For unknown states, it provides uniform probability distribution across all known states.
+        
+        Args:
+            current_state: The current attack state (e.g., "SQL Injection", "XSS")
+            top_k: Number of top predictions to return (default: 3)
+            
+        Returns:
+            Dict containing:
+            - 'predicted_attack': The most likely next attack (str)
+            - 'confidence': Confidence score for the top prediction (0.0-1.0)
+            - 'top_predictions': List of (attack, probability) tuples, sorted by probability desc
+        """
+        # Handle unknown states by adding them and computing uniform probabilities
+        if current_state not in self.all_states:
+            self.all_states.add(current_state)
+            # Update probabilities for all states since all_states changed
+            for state in self.all_states:
+                self._update_probabilities(state)
+        elif current_state not in self.transitions:
+            self._update_probabilities(current_state)
         
         # Get all possible next states with probabilities
-        next_states = self.transitions[current_state]
+        next_states = self.transitions.get(current_state, {})
         
-        # Sort by probability and return top k
+        if not next_states:
+            # Fallback for completely empty transitions (shouldn't happen with smoothing)
+            return {
+                'predicted_attack': 'reconnaissance',
+                'confidence': 0.0,
+                'top_predictions': [('reconnaissance', 1.0)]
+            }
+        
+        # Sort by probability descending
         sorted_states = sorted(
             next_states.items(),
             key=lambda x: x[1],
             reverse=True
         )
         
-        return sorted_states[:top_k]
+        top_predictions = sorted_states[:top_k]
+        
+        return {
+            'predicted_attack': top_predictions[0][0] if top_predictions else 'reconnaissance',
+            'confidence': top_predictions[0][1] if top_predictions else 0.0,
+            'top_predictions': top_predictions
+        }
     
     def learn_sequence(self, sequence: List[str]):
-        """Learn from a complete attack sequence."""
+        """
+        Learn transition patterns from a complete attack sequence.
+        
+        Processes an entire sequence of attack types and updates the transition
+        probabilities for each consecutive pair. This is useful for batch learning
+        from historical attack data.
+        
+        Args:
+            sequence: List of attack types in chronological order
+        """
         for i in range(len(sequence) - 1):
             self.learn_transition(sequence[i], sequence[i + 1])
         self.total_sequences += 1
@@ -439,7 +580,8 @@ class AttackPredictionEngine:
         
         # Predict next vectors
         current_action = sequence.actions[-1]
-        next_vectors = self.markov_predictor.predict_next(current_action, top_k=3)
+        prediction_result = self.markov_predictor.predict_next(current_action, top_k=3)
+        next_vectors = prediction_result['top_predictions']
         
         # Predict goal
         goal, goal_confidence = self.goal_predictor.predict_goal(
