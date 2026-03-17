@@ -79,7 +79,7 @@ class MITRETechniqueDatabase:
         techniques = [
             MITRETechnique("T1190", "Exploit Public-Facing Application", MITRETactic.INITIAL_ACCESS,
                            "Exploiting weaknesses in Internet-facing applications",
-                           ["sql injection", "xss", "command injection", "path traversal"]),
+                           ["sql injection", "xss", "command injection", "path traversal", "ssrf", "insecure deserialization"]),
             MITRETechnique("T1133", "External Remote Services", MITRETactic.INITIAL_ACCESS,
                            "Leveraging external remote services",
                            ["admin", "remote", "ssh", "rdp"]),
@@ -88,7 +88,7 @@ class MITRETechniqueDatabase:
                            ["command injection", "shell", "exec", "system"]),
             MITRETechnique("T1203", "Exploitation for Client Execution", MITRETactic.EXECUTION,
                            "Exploiting software vulnerabilities for execution",
-                           ["xss", "script", "javascript"]),
+                           ["xss", "script", "javascript", "pickle.loads", "insecure deserialization"]),
             MITRETechnique("T1505", "Server Software Component", MITRETactic.PERSISTENCE,
                            "Abusing server software components",
                            ["backdoor", "webshell", "upload"]),
@@ -97,7 +97,7 @@ class MITRETechniqueDatabase:
                            ["admin", "privilege", "escalation", "sudo"]),
             MITRETechnique("T1027", "Obfuscated Files or Information", MITRETactic.DEFENSE_EVASION,
                            "Making data difficult to discover or analyze",
-                           ["encode", "obfuscate", "base64", "hex"]),
+                           ["encode", "obfuscate", "base64", "hex", "pickle.loads", "yaml.load", "eval(", "exec(", "os.system", "subprocess."]),
             MITRETechnique("T1140", "Deobfuscate/Decode Files or Information", MITRETactic.DEFENSE_EVASION,
                            "Decoding obfuscated data",
                            ["decode", "unhex", "char"]),
@@ -117,6 +117,9 @@ class MITRETechniqueDatabase:
             MITRETechnique("T1046", "Network Service Scanning", MITRETactic.DISCOVERY,
                            "Scanning for network services",
                            ["scan", "probe", "enumerate", "nmap"]),
+            MITRETechnique("T1078", "Valid Accounts", MITRETactic.CREDENTIAL_ACCESS,
+                           "Using stolen or valid credentials",
+                           ["admin:admin", "root:root", "user:user", "password:password"]),
             MITRETechnique("T1005", "Data from Local System", MITRETactic.COLLECTION,
                            "Collecting data from local system",
                            ["read", "cat", "download", "file"]),
@@ -157,7 +160,47 @@ class AttackToMITREMapper:
     def map_attack(self, attack_type: str, payload: str, attacker_id: Optional[str] = None) -> List[AttackMapping]:
         mappings = []
         added_techniques = set()
-        search_text = f"{attack_type} {payload}".lower()
+
+        # Normalize attack type to keywords for MITRE mapping
+        normalized_attack_type = attack_type or ""
+        normalized_keyword = normalized_attack_type.lower()
+
+        if normalized_attack_type.upper() == "PATH_TRAVERSAL":
+            normalized_keyword = "path traversal"
+        elif normalized_attack_type.upper() == "CMD_INJECTION":
+            normalized_keyword = "command injection"
+        elif normalized_attack_type.upper() == "DESERIALIZATION" or normalized_attack_type.lower() == "insecure deserialization":
+            normalized_keyword = "insecure deserialization"
+        elif normalized_attack_type.upper() == "AUTH_BYPASS" or normalized_attack_type.lower() == "authentication bypass":
+            normalized_keyword = "authentication bypass"
+
+        # Explicit attack-type -> MITRE technique mapping override for clarity
+        explicit_map = {
+            "SQL Injection": "T1190",
+            "XSS": "T1203",
+            "PATH_TRAVERSAL": "T1083",
+            "CMD_INJECTION": "T1059",
+            "SSRF": "T1133",
+            "Authentication Bypass": "T1078",
+            "DESERIALIZATION": "T1027",
+            "Insecure Deserialization": "T1027",
+        }
+
+        explicit_technique = explicit_map.get(attack_type) or explicit_map.get(normalized_attack_type)
+        if explicit_technique:
+            tech = self.technique_db.get_technique(explicit_technique)
+            if tech:
+                confidence = self._calculate_confidence(attack_type, payload, tech)
+                mapping = AttackMapping(attack_type, payload, tech, confidence, attacker_id=attacker_id)
+                mappings.append(mapping)
+                added_techniques.add(tech.technique_id)
+
+                if attacker_id:
+                    self._update_attacker_profile(attacker_id, mapping)
+
+                return mappings
+
+        search_text = f"{normalized_keyword} {payload}".lower()
         matching_techniques = self.technique_db.search_by_pattern(search_text)
 
         for tech in matching_techniques:
@@ -209,12 +252,26 @@ class AttackToMITREMapper:
                 "technique_name": mapping.technique.name,
                 "confidence": f"{mapping.confidence:.1%}"
             })
+        technique_history = [
+            {
+                "technique_id": mapping.technique.technique_id,
+                "technique_name": mapping.technique.name,
+                "tactic": mapping.technique.tactic.name,
+                "confidence": f"{mapping.confidence:.1%}",
+                "timestamp": mapping.timestamp.isoformat()
+            }
+            for mapping in profile.attack_mappings
+        ]
+
+        technique_history.sort(key=lambda x: x["timestamp"], reverse=True)
+
         return {
             "attacker_id": attacker_id,
             "tactics_used": [t.name for t in profile.tactics_used],
             "tactic_coverage": f"{profile.get_tactic_coverage():.1%}",
             "total_techniques": len(profile.techniques_used),
             "tactics_breakdown": tactics_breakdown,
+            "technique_history": technique_history,
             "first_seen": profile.first_seen.isoformat(),
             "last_seen": profile.last_seen.isoformat()
         }

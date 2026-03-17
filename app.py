@@ -137,18 +137,21 @@ def get_mitre_summary(attacker_id: str) -> dict:
         if "error" in ttp_data:
             return {"techniques": [], "count": 0}
         
-        # Flatten tactics_breakdown into a simple techniques array
-        techniques = []
-        if "tactics_breakdown" in ttp_data:
-            for tactic_name, tactic_techniques in ttp_data["tactics_breakdown"].items():
-                for tech in tactic_techniques:
-                    techniques.append({
-                        "technique_id": tech["technique_id"],
-                        "technique_name": tech["technique_name"],
-                        "tactic": tactic_name,
-                        "confidence": tech.get("confidence", "N/A")
-                    })
-        
+        # Prefer explicit history by timestamp when available
+        if "technique_history" in ttp_data:
+            techniques = ttp_data["technique_history"]
+        else:
+            techniques = []
+            if "tactics_breakdown" in ttp_data:
+                for tactic_name, tactic_techniques in ttp_data["tactics_breakdown"].items():
+                    for tech in tactic_techniques:
+                        techniques.append({
+                            "technique_id": tech["technique_id"],
+                            "technique_name": tech["technique_name"],
+                            "tactic": tactic_name,
+                            "confidence": tech.get("confidence", "N/A")
+                        })
+
         return {
             "techniques": techniques,
             "count": len(techniques)
