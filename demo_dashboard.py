@@ -691,14 +691,27 @@ def get_demo_dashboard_html() -> str:
             document.getElementById('skill-level').textContent = data.skill_level || 'ANALYZING';
             
             // Update current attack display
-            const attackHtml = `
+            function formatAttackType(name) {
+            const map = {
+                "PATH_TRAVERSAL": "Path Traversal",
+                "CMD_INJECTION": "Command Injection",
+                "SSRF": "SSRF",
+                "AUTH_BYPASS": "Authentication Bypass",
+                "DESERIALIZATION": "Insecure Deserialization",
+                "SQL Injection": "SQL Injection",
+                "XSS": "XSS"
+            };
+            return map[name] || (name ? name.replace(/_/g, ' ') : 'Unknown');
+        }
+
+        const attackHtml = `
                 <div class="attack-display">
                     <div class="attack-label">⏰ Timestamp</div>
                     <div class="attack-value">${new Date(data.timestamp).toLocaleString()}</div>
                 </div>
                 <div class="attack-display">
                     <div class="attack-label">🎯 Attack Type</div>
-                    <div class="attack-value">${data.attack_type}</div>
+                    <div class="attack-value">${formatAttackType(data.attack_type)}</div>
                 </div>
                 <div class="attack-display">
                     <div class="attack-label">🌐 IP Address</div>
@@ -719,6 +732,11 @@ def get_demo_dashboard_html() -> str:
             `;
             document.getElementById('current-attack').innerHTML = attackHtml;
             
+            // Update MITRE panel from attack data if present
+            if (data.mitre) {
+                updateMITRE(data.mitre);
+            }
+
             // Update timeline
             updateTimeline();
         }
@@ -1106,11 +1124,16 @@ def get_demo_dashboard_html() -> str:
                     const mitreDisplayEl = document.getElementById('mitre-display');
                     if (mitreDisplayEl) {
                         mitreDisplayEl.innerHTML = '';
-                        data.mitre.techniques.slice(0, 5).forEach(technique => {
+                        const techniquesToShow = data.mitre.techniques; // already newest-first from backend
+                        techniquesToShow.forEach(technique => {
                             const techDiv = document.createElement('div');
                             techDiv.style.cssText = 'margin-bottom: 10px; padding: 12px; background: rgba(0, 0, 0, 0.3); border-left: 3px solid #e74c3c; border-radius: 5px;';
+                            const detectedAt = technique.timestamp ? new Date(technique.timestamp).toLocaleTimeString() : 'Unknown';
                             techDiv.innerHTML = `
-                                <div style="color: #e74c3c; font-weight: bold;">${technique.technique_id}</div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                  <span style="color: #e74c3c; font-weight: bold;">${technique.technique_id}</span>
+                                  <span style="color: #8fe4ff; font-size: 0.8em;">${detectedAt}</span>
+                                </div>
                                 <div style="color: #fff; margin: 5px 0;">${technique.technique_name}</div>
                                 <div style="color: #aaa; font-size: 0.9em;">${technique.tactic}</div>
                             `;

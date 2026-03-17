@@ -3,6 +3,7 @@ Attack Pattern Analyzer
 Detects common web attack patterns in incoming payloads.
 """
 
+import re
 from typing import List
 from dataclasses import dataclass
 from enum import Enum
@@ -30,7 +31,18 @@ class AttackPattern:
     def matches(self, payload: str) -> bool:
         """Check if payload matches any signature in this pattern."""
         search_payload = payload if self.case_sensitive else payload.lower()
-        return any(sig in search_payload for sig in self.signatures)
+        search_payload_no_space = re.sub(r"\s+", "", search_payload)
+
+        for sig in self.signatures:
+            match_sig = sig if self.case_sensitive else sig.lower()
+
+            if match_sig in search_payload:
+                return True
+
+            if match_sig.replace(" ", "") in search_payload_no_space:
+                return True
+
+        return False
 
 
 class AttackAnalyzer:
@@ -104,14 +116,23 @@ class AttackAnalyzer:
                 signatures=[
                     "cmd=",
                     ";ls",
+                    "; ls",
                     ";cat",
+                    "; cat",
                     ";rm",
+                    "; rm",
                     ";wget",
+                    "; wget",
                     ";curl",
+                    "; curl",
                     "|ls",
+                    "| ls",
                     "|cat",
+                    "| cat",
                     "&ls",
+                    "& ls",
                     "&cat",
+                    "& cat",
                     "$(cat",
                     "$(ls",
                     "`cat",
