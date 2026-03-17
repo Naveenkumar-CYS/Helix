@@ -203,6 +203,30 @@ class AttackAnalyzer:
         """
         if not payload:
             return AttackType.NORMAL
+        payload_lower = payload.lower()
+        import re
+
+        # 🔥 Detect boolean-based SQLMap patterns (automated)
+        if re.search(r"\band\s+\d+=\d+", payload_lower):
+            return AttackType.SQL_INJECTION
+
+        # 🔥 Detect AUTOMATED SQLMap behaviour FIRST
+        if (
+            "select" in payload_lower
+            or "sleep(" in payload_lower
+            or "pg_sleep" in payload_lower
+            or "waitfor delay" in payload_lower
+            or "extractvalue" in payload_lower
+            or "updatexml" in payload_lower
+            or "dbms_pipe.receive_message" in payload_lower
+            or "char(" in payload_lower
+            or "chr(" in payload_lower
+            or "concat(" in payload_lower
+            or "information_schema" in payload_lower
+            or "benchmark(" in payload_lower
+            or "union all select" in payload_lower
+        ):  
+            return AttackType.SQL_INJECTION   # ✅ FORCE SQL Injection    
         
         # Check each pattern in order
         for pattern in self.patterns:
