@@ -60,27 +60,44 @@ templates = Jinja2Templates(directory="templates")
 # =========================
 ATTACKER_ID_COOKIE = "attacker_id"
 
+# In-memory enforcement lists for demo-level blocking/isolation
+blocked_ips = set()
+isolated_ips = set()
+
 
 # =========================
 # HELPER FUNCTIONS
 # =========================
-def get_attacker_id(request: Request) -> str:
-    """
-    Generate a stable attacker ID using the client IP.
-    This allows the honeypot to track attack stages.
-    """
-    if request.client:
+def get_client_ip(request: Request) -> str:
+    """Get the remote IP address from request."""
+    if request.client and request.client.host:
         return request.client.host
     return "unknown"
+
+
+def check_ip_restriction(request: Request):
+    """Return a blocking or isolation response if client IP is restricted."""
+    ip = get_client_ip(request)
+
+    if ip in blocked_ips:
+        print(f"[SECURITY] Blocked request from IP {ip}")
+        return PlainTextResponse("Access denied: IP blocked", status_code=403)
+
+    if ip in isolated_ips:
+        print(f"[SECURITY] Isolated request from IP {ip}")
+        return PlainTextResponse("You are isolated in a honeypot environment", status_code=200)
+
+    return None
+
+
+def get_attacker_id(request: Request) -> str:
     """
-    Retrieve or generate attacker tracking ID.
-    
-    Args:
-        request: FastAPI request object
-        
-    Returns:
-        Unique attacker identifier (existing or newly generated)
+    Generate a stable attacker ID in a way that maintains session continuity.
+    Uses client IP when present; otherwise uses an attacker cookie (or creates one).
     """
+    if request.client and request.client.host:
+        return request.client.host
+
     attacker_id = request.cookies.get(ATTACKER_ID_COOKIE)
     if not attacker_id:
         attacker_id = uuid4().hex
@@ -197,6 +214,10 @@ async def search_endpoint(request: Request, q: str = "") -> Response:
     Returns:
         Response with fake search results or leaked data
     """
+    restriction = check_ip_restriction(request)
+    if restriction:
+        return restriction
+
     attacker_id = get_attacker_id(request)
     payload = build_payload(request, query_param=q)
     
@@ -361,6 +382,10 @@ async def admin_endpoint(request: Request) -> Response:
     Returns:
         Response with admin panel content or command results
     """
+    restriction = check_ip_restriction(request)
+    if restriction:
+        return restriction
+
     attacker_id = get_attacker_id(request)
     payload = build_payload(request)
     
@@ -439,6 +464,45 @@ async def login(request: Request) -> HTMLResponse:
 @app.get("/register", response_class=HTMLResponse)
 async def register(request: Request) -> HTMLResponse:
     return templates.TemplateResponse("auth.html", {"request": request, "title": "Register", "is_register": True})
+
+
+@app.post("/api/isolate_ip")
+async def api_isolate_ip(request: Request):
+    data = await request.json()
+    ip = str(data.get("ip", "")).strip()
+    if not ip:
+        return {"status": "error", "message": "IP required"}
+
+    isolated_ips.add(ip)
+    blocked_ips.discard(ip)
+    print(f"[SECURITY] IP isolated via API: {ip}")
+    return {"status": "ok", "action": "isolated", "ip": ip}
+
+
+@app.post("/api/block_ip")
+async def api_block_ip(request: Request):
+    data = await request.json()
+    ip = str(data.get("ip", "")).strip()
+    if not ip:
+        return {"status": "error", "message": "IP required"}
+
+    blocked_ips.add(ip)
+    isolated_ips.discard(ip)
+    print(f"[SECURITY] IP blocked via API: {ip}")
+    return {"status": "ok", "action": "blocked", "ip": ip}
+
+
+@app.post("/api/continue_ip")
+async def api_continue_ip(request: Request):
+    data = await request.json()
+    ip = str(data.get("ip", "")).strip()
+    if not ip:
+        return {"status": "error", "message": "IP required"}
+
+    blocked_ips.discard(ip)
+    isolated_ips.discard(ip)
+    print(f"[SECURITY] IP restored to monitoring: {ip}")
+    return {"status": "ok", "action": "continued", "ip": ip}
 
 
 @app.get("/logs", response_class=HTMLResponse)

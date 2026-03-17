@@ -180,6 +180,43 @@ def get_demo_dashboard_html() -> str:
         .analysis-label {
             color: #00d4ff;
         }
+
+        .isolate-panel {
+            background: rgba(255, 0, 0, 0.06);
+            border: 2px dashed #ff0066;
+        }
+
+        .isolate-warning {
+            color: #ff0066;
+            background: rgba(255, 0, 0, 0.2);
+            border: 1px solid #ff0066;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .isolate-action-button {
+            width: 32%;
+            margin-right: 1%;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, rgba(0, 255, 65, 0.2), rgba(0, 212, 255, 0.2));
+            color: #ffffff;
+            border: 1px solid #00ff41;
+        }
+
+        .isolate-action-button:last-child { margin-right: 0; }
+
+        .isolate-status-box {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #00ff41;
+            border-radius: 8px;
+            padding: 14px;
+            color: #00ff41;
+            min-height: 40px;
+            margin-top: 10px;
+        }
+
         
         .analysis-value {
             color: #00ff41;
@@ -449,8 +486,8 @@ def get_demo_dashboard_html() -> str:
             <button class="tab-btn active" onclick="switchTab('live-monitor')">📡 Live Monitor</button>
             <button class="tab-btn" onclick="switchTab('ai-intelligence')">🧠 AI Intelligence</button>
             <button class="tab-btn" onclick="switchTab('mitre-analysis')">🎯 MITRE Analysis</button>
+            <button class="tab-btn" onclick="switchTab('isolate-ip')">🚫 Isolate IP</button>
             <button class="tab-btn" onclick="switchTab('threat-profile')">👤 Threat Profile</button>
-            <button class="tab-btn" onclick="switchTab('attack-simulator')" style="color: #e74c3c;">⚡ Attack Simulator</button>
         </div>
         
         <div class="stats-grid">
@@ -534,6 +571,35 @@ def get_demo_dashboard_html() -> str:
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- TAB 3.5: Isolate IP -->
+        <div id="isolate-ip" class="tab-content">
+            <div class="panel full-width isolate-panel">
+                <h2>🚫 ISOLATE IP RESPONSE</h2>
+                <div id="isolate-warning" class="isolate-warning" style="display: none;"></div>
+
+                <div class="analysis-item">
+                    <span class="analysis-label">Current Attacker IP</span>
+                    <span class="analysis-value" id="isolate-ip-address">N/A</span>
+                </div>
+                <div class="analysis-item">
+                    <span class="analysis-label">Current Skill Level</span>
+                    <span class="analysis-value" id="isolate-skill-level">N/A</span>
+                </div>
+                <div class="analysis-item">
+                    <span class="analysis-label">Threat Level</span>
+                    <span class="analysis-value" id="isolate-threat-level">N/A</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                    <button class="attack-btn isolate-action-button" style="background: linear-gradient(135deg, #1abc9c, #16a085);" onclick="isolateIp()">🔒 Isolate IP</button>
+                    <button class="attack-btn isolate-action-button" style="background: linear-gradient(135deg, #e74c3c, #c0392b);" onclick="blockIp()">⛔ Block IP</button>
+                    <button class="attack-btn isolate-action-button" style="background: linear-gradient(135deg, #3498db, #2980b9);" onclick="continueMonitoring()">▶ Continue Monitoring</button>
+                </div>
+
+                <div id="isolate-action-status" class="isolate-status-box">Awaiting action...</div>
             </div>
         </div>
         
@@ -739,6 +805,9 @@ def get_demo_dashboard_html() -> str:
 
             // Update timeline
             updateTimeline();
+
+            // Update isolate response panel
+            updateIsolatePanel(data);
         }
         
         function updateLLMThinking(steps) {
@@ -964,6 +1033,141 @@ def get_demo_dashboard_html() -> str:
             `).join('');
             
             document.getElementById('attack-timeline').innerHTML = html || '<div class="waiting-message">No attacks yet...</div>';
+        }
+
+        function setIsolateStatus(message, color = '#00ff41') {
+            const statusBox = document.getElementById('isolate-action-status');
+            if (!statusBox) return;
+            statusBox.textContent = message;
+            statusBox.style.color = color;
+            statusBox.style.borderColor = color;
+        }
+
+        function getCurrentIsolateIp() {
+            const ipEl = document.getElementById('isolate-ip-address');
+            if (!ipEl) return null;
+            const ip = ipEl.textContent.trim();
+            if (!ip || ip === 'N/A' || ip === 'Unknown') return null;
+            return ip;
+        }
+
+        async function isolateIp() {
+            const ip = getCurrentIsolateIp();
+            if (!ip) {
+                setIsolateStatus('No attacker IP available to isolate.', '#ffd700');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/isolate_ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip })
+                });
+                const data = await resp.json();
+
+                if (resp.ok && data.status === 'ok') {
+                    setIsolateStatus('IP successfully isolated', '#00ff41');
+                    document.getElementById('isolate-warning').style.display = 'block';
+                    document.getElementById('isolate-warning').textContent = '✅ ' + ip + ' isolated. Honeypot mode engaged.';
+                    document.getElementById('isolate-ip-address').style.color = '#ff0066';
+                } else {
+                    setIsolateStatus('Failed to isolate IP: ' + (data.message || 'Unknown error'), '#e74c3c');
+                }
+            } catch (err) {
+                setIsolateStatus('Failed to isolate IP: ' + err.message, '#e74c3c');
+            }
+        }
+
+        async function blockIp() {
+            const ip = getCurrentIsolateIp();
+            if (!ip) {
+                setIsolateStatus('No attacker IP available to block.', '#ffd700');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/block_ip', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip })
+                });
+                const data = await resp.json();
+
+                if (resp.ok && data.status === 'ok') {
+                    setIsolateStatus('IP successfully blocked', '#ff0066');
+                    document.getElementById('isolate-warning').style.display = 'block';
+                    document.getElementById('isolate-warning').textContent = '🛑 ' + ip + ' blocked. Access forbidden.';
+                    document.getElementById('isolate-ip-address').style.color = '#ff0066';
+                } else {
+                    setIsolateStatus('Failed to block IP: ' + (data.message || 'Unknown error'), '#e74c3c');
+                }
+            } catch (err) {
+                setIsolateStatus('Failed to block IP: ' + err.message, '#e74c3c');
+            }
+        }
+
+        function continueMonitoring() {
+            const ip = getCurrentIsolateIp();
+            if (!ip) {
+                setIsolateStatus('No attacker IP available to continue monitoring.', '#ffd700');
+                return;
+            }
+
+            fetch('/api/continue_ip', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ip: ip })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'ok') {
+                    setIsolateStatus('Monitoring resumed for IP', '#00d4ff');
+                    const warning = document.getElementById('isolate-warning');
+                    if (warning) {
+                        warning.style.display = 'none';
+                    }
+                    const ipLabel = document.getElementById('isolate-ip-address');
+                    if (ipLabel) {
+                        ipLabel.style.color = '#00ff41';
+                    }
+                } else {
+                    setIsolateStatus('Error restoring IP: ' + (data.message || 'Unknown error'), '#e74c3c');
+                }
+            })
+            .catch(err => {
+                setIsolateStatus('Error restoring IP', '#e74c3c');
+            });
+        }
+
+        function updateIsolatePanel(data) {
+            const ipEl = document.getElementById('isolate-ip-address');
+            const skillEl = document.getElementById('isolate-skill-level');
+            const threatEl = document.getElementById('isolate-threat-level');
+            const warningEl = document.getElementById('isolate-warning');
+
+            if (!ipEl || !skillEl || !threatEl || !warningEl) return;
+
+            const ip = data.ip || 'Unknown';
+            const skill = data.skill_level || 'Unknown';
+            const threat = data.threat_level || 'Unknown';
+
+            ipEl.textContent = ip;
+            skillEl.textContent = skill;
+            threatEl.textContent = threat;
+
+            if (skill.toUpperCase() === 'AUTOMATED') {
+                warningEl.style.display = 'block';
+                warningEl.textContent = '⚠️ AUTOMATED attacker detected. Automatic containment recommended.';
+                ipEl.style.color = '#ff0066';
+                ipEl.style.fontWeight = 'bold';
+                setIsolateStatus('Automated attacker flagged. Ready for immediate action.', '#ff0066');
+            } else {
+                warningEl.style.display = 'none';
+                warningEl.textContent = '';
+                ipEl.style.color = '#00ff41';
+                ipEl.style.fontWeight = 'normal';
+            }
         }
         
         function formatKey(key) {
@@ -1245,6 +1449,9 @@ def get_demo_dashboard_html() -> str:
                     // Add new item at the top
                     attackTimelineEl.insertBefore(timelineItem, attackTimelineEl.firstChild);
                 }
+
+                // Update isolate response panel in the second message handler as well
+                updateIsolatePanel(data);
             }
         };
         
